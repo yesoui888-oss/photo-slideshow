@@ -130,8 +130,8 @@
   <div class="title">写真は、<br><b>一秒</b>ごとに巡る。</div>
   <div class="sub">端末から写真を選ぶと、画面サイズに最適化してから再生します。元データは保存されず、容量を圧迫しません。</div>
 
-  <input type="file" id="fileInput" accept="image/*" multiple>
-  <button class="pick-btn" id="pickBtn">写真を選ぶ</button>
+  <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
+  <label for="fileInput" class="pick-btn" id="pickBtn">写真を選ぶ</label>
   <div class="count" id="countLabel"></div>
 
   <div id="progressWrap">
@@ -205,7 +205,7 @@
   let tickStart = 0;
   let rafId = null;
 
-  pickBtn.addEventListener('click', () => fileInput.click());
+  // label要素なのでclickイベント不要（for="fileInput"で直接紐付け済み）
 
   fileInput.addEventListener('change', async (e) => {
     // iOS では iCloud 写真の file.type が空文字になることがあるため、
@@ -271,7 +271,8 @@
   }
 
   // FileReader + dataURL 方式
-  // (blob: URLはアーティファクトのサンドボックス環境でブロックされることがあるため data: を使用)
+  // canvas.toDataURL()で再エンコードするため、EXIFメタデータ（GPS位置情報含む）は
+  // 自動的に除去されます。元の位置情報が出力画像に残ることはありません。
   function resizeToObjectURL(file, maxW, maxH) {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -404,6 +405,7 @@
     stage.classList.remove('show');
     intro.style.display = 'flex';
     pickBtn.style.display = 'inline-block';
+    pickBtn.textContent = '写真を選ぶ';
     progressWrap.classList.remove('show');
     progressLabel.style.display = 'none';
     progressBar.style.width = '0%';
