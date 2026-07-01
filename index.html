@@ -5,68 +5,50 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>巡 - Slideshow</title>
 <style>
-  :root{
-    --ink:#0c0c0d;
-    --paper:#f4f1ea;
-    --ember:#c2542e;
-    --line:rgba(244,241,234,0.18);
-  }
+  :root{--ink:#0c0c0d;--paper:#f4f1ea;--ember:#c2542e;--line:rgba(244,241,234,0.18);}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0;}
-  html{height:100%;background:var(--ink);}
-  body{
-    min-height:100%;width:100%;
-    background:var(--ink);color:var(--paper);
-    font-family:-apple-system,"Hiragino Sans","Yu Gothic",sans-serif;
-  }
+  html,body{height:100%;background:var(--ink);color:var(--paper);
+    font-family:-apple-system,"Hiragino Sans","Yu Gothic",sans-serif;}
 
-  /* ---- 起動画面：position:fixedを使わない ---- */
+  /* 起動画面 */
   #intro{
-    min-height:100svh;
-    display:flex;flex-direction:column;
-    align-items:center;justify-content:center;gap:28px;
+    height:100vh;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:24px;
     padding:40px 32px;text-align:center;
     background:radial-gradient(circle at 50% 20%,rgba(194,84,46,0.12),transparent 60%),var(--ink);
   }
   #intro.hidden{display:none;}
-
   .mark{font-size:13px;letter-spacing:0.5em;color:var(--ember);font-weight:600;}
   .ttl{font-size:clamp(28px,7vw,40px);font-weight:300;letter-spacing:0.04em;line-height:1.4;}
   .ttl b{font-weight:600;color:var(--ember);}
   .sub{font-size:14px;color:rgba(244,241,234,0.55);max-width:300px;line-height:1.7;}
-
-  /* fileInputをlabelで包む — これがiOS Safariで最も確実 */
-  #fileLabelWrap{position:relative;display:inline-block;}
-  #fileLabelWrap input[type=file]{
-    position:absolute;inset:0;width:100%;height:100%;
-    opacity:0;cursor:pointer;font-size:16px;
-    /* display:noneやvisibility:hiddenにしない */
+  .pick-visual{
+    border:1px solid var(--ember);padding:16px 48px;font-size:15px;
+    letter-spacing:0.08em;border-radius:2px;color:var(--paper);
   }
-  .pick-btn{
-    display:block;
-    border:1px solid var(--ember);background:transparent;
-    color:var(--paper);padding:16px 48px;font-size:15px;
-    letter-spacing:0.08em;border-radius:2px;
-    pointer-events:none;/* タップはinputが受ける */
-  }
-
+  .tap-hint{font-size:12px;color:rgba(244,241,234,0.35);letter-spacing:0.05em;}
   .count{font-size:12px;color:rgba(244,241,234,0.4);letter-spacing:0.06em;}
   #progressWrap{width:220px;height:1px;background:var(--line);position:relative;display:none;}
   #progressWrap.show{display:block;}
   #progressBar{position:absolute;left:0;top:0;height:100%;width:0%;background:var(--ember);transition:width .15s linear;}
-  #progressLabel{font-size:11px;color:rgba(244,241,234,0.45);letter-spacing:0.06em;min-height:1em;}
+  #progressLabel{font-size:11px;color:rgba(244,241,234,0.45);letter-spacing:0.06em;min-height:1.2em;}
 
-  /* ---- スライドショー ---- */
-  #stage{
-    position:fixed;inset:0;display:none;background:#000;z-index:10;
+  /* 画面全体を覆う透明なfileInput — どこをタップしても選択できる */
+  #fileInput{
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    opacity:0;z-index:99;cursor:pointer;font-size:16px;
   }
+  #fileInput.hidden{display:none;}
+
+  /* スライドショー */
+  #stage{position:fixed;inset:0;display:none;background:#000;z-index:10;}
   #stage.show{display:block;}
   .slide{
     position:absolute;inset:0;
-    background-size:cover;background-position:center;background-repeat:no-repeat;
+    background-size:cover;background-position:center;
     opacity:0;transition:opacity 0.35s ease;
   }
   .slide.active{opacity:1;}
-
   #hud{
     position:fixed;top:0;left:0;right:0;z-index:20;
     display:flex;align-items:center;justify-content:space-between;
@@ -82,53 +64,32 @@
     width:36px;height:36px;border-radius:50%;display:flex;align-items:center;
     justify-content:center;font-size:16px;cursor:pointer;
   }
-
   #timebar{position:fixed;left:0;right:0;bottom:0;height:2px;z-index:20;background:var(--line);}
   #timebar i{display:block;height:100%;width:0%;background:var(--ember);}
-
-  /* ---- 書き出しオーバーレイ ---- */
-  #exportOverlay{
-    position:fixed;inset:0;z-index:40;display:none;
-    flex-direction:column;align-items:center;justify-content:center;gap:20px;
-    background:rgba(8,8,9,0.96);padding:32px;text-align:center;
-  }
-  #exportOverlay.show{display:flex;}
-  #exportOverlay .elbl{font-size:13px;letter-spacing:0.06em;color:rgba(244,241,234,0.7);}
-  #exportBarWrap{width:220px;height:1px;background:var(--line);position:relative;}
-  #exportBar{position:absolute;left:0;top:0;height:100%;width:0%;background:var(--ember);transition:width .15s linear;}
-  #exportResult{display:none;flex-direction:column;align-items:center;gap:16px;max-width:340px;}
-  #exportResult.show{display:flex;}
-  #exportResult video{width:100%;max-height:50vh;border-radius:4px;background:#000;}
-  #exportResult .hint{font-size:12px;line-height:1.7;color:rgba(244,241,234,0.55);}
-  .export-close{
-    border:1px solid var(--line);background:transparent;color:var(--paper);
-    padding:10px 28px;font-size:13px;letter-spacing:0.06em;border-radius:2px;cursor:pointer;font-family:inherit;
-  }
 </style>
 </head>
 <body>
 
+<!-- 起動画面 -->
 <div id="intro">
   <div class="mark">PHOTO SLIDESHOW</div>
   <div class="ttl">写真は、<br><b>一秒</b>ごとに巡る。</div>
-  <div class="sub">端末から写真を選ぶと、画面サイズに最適化してから再生します。位置情報などのメタデータは除去されます。</div>
-
-  <!-- labelでinputを包む: iOS Safariで最も確実な方法 -->
-  <div id="fileLabelWrap">
-    <div class="pick-btn" id="pickBtnLabel">写真を選ぶ</div>
-    <input type="file" id="fileInput" accept="image/*" multiple>
-  </div>
-
+  <div class="sub">位置情報などのメタデータは自動的に除去されます。</div>
+  <div class="pick-visual" id="pickVisual">写真を選ぶ</div>
+  <div class="tap-hint">↑ タップして写真を選択</div>
   <div class="count" id="countLabel"></div>
   <div id="progressWrap"><div id="progressBar"></div></div>
   <div id="progressLabel"></div>
 </div>
 
+<!-- 画面全体を覆う透明なinput（起動画面表示中のみ有効） -->
+<input type="file" id="fileInput" accept="image/*" multiple>
+
+<!-- スライドショー -->
 <div id="stage">
   <div id="hud">
     <div class="lbl" id="hudLabel">1 / 1</div>
     <div class="hud-controls">
-      <div class="hud-btn" id="exportBtn">🎬</div>
       <div class="hud-btn" id="playPauseBtn">❚❚</div>
       <div class="hud-btn" id="fullscreenBtn">⤢</div>
       <div class="hud-btn" id="closeBtn">✕</div>
@@ -137,28 +98,15 @@
   <div id="timebar"><i id="timebarFill"></i></div>
 </div>
 
-<div id="exportOverlay">
-  <div id="exportProgress">
-    <div class="elbl" id="exportLabel">動画を作成中…</div>
-    <div id="exportBarWrap"><div id="exportBar"></div></div>
-  </div>
-  <div id="exportResult">
-    <video id="exportVideoEl" controls playsinline></video>
-    <div class="hint">再生して長押し→「ビデオを保存」でカメラロールに保存できます。その後AirDropやLINEで共有できます。</div>
-    <button class="export-close" id="exportCloseBtn">閉じる</button>
-  </div>
-</div>
-
 <script>
 (function(){
   const intro        = document.getElementById('intro');
   const fileInput    = document.getElementById('fileInput');
-  const fileLabelWrap= document.getElementById('fileLabelWrap');
+  const pickVisual   = document.getElementById('pickVisual');
   const countLabel   = document.getElementById('countLabel');
   const progressWrap = document.getElementById('progressWrap');
   const progressBar  = document.getElementById('progressBar');
   const progressLabel= document.getElementById('progressLabel');
-
   const stage        = document.getElementById('stage');
   const hud          = document.getElementById('hud');
   const hudLabel     = document.getElementById('hudLabel');
@@ -166,149 +114,131 @@
   const fullscreenBtn= document.getElementById('fullscreenBtn');
   const closeBtn     = document.getElementById('closeBtn');
   const timebarFill  = document.getElementById('timebarFill');
-  const exportBtn    = document.getElementById('exportBtn');
-  const exportOverlay= document.getElementById('exportOverlay');
-  const exportProgress=document.getElementById('exportProgress');
-  const exportLabel  = document.getElementById('exportLabel');
-  const exportBar    = document.getElementById('exportBar');
-  const exportResult = document.getElementById('exportResult');
-  const exportVideoEl= document.getElementById('exportVideoEl');
-  const exportCloseBtn=document.getElementById('exportCloseBtn');
 
   const INTERVAL_MS = 1000;
-  let slides = [];
-  let slideEls = [];
-  let currentIndex = 0;
-  let isPlaying = false;
-  let tickTimer = null;
-  let tickStart = 0;
-  let rafId = null;
-  let targetW = 0, targetH = 0;
+  let slides=[], slideEls=[], currentIndex=0;
+  let isPlaying=false, tickTimer=null, tickStart=0, rafId=null;
+  let targetW=0, targetH=0;
 
   // ---------- 写真読み込み ----------
-  fileInput.addEventListener('change', async (e) => {
-    const isImg = f => f.type.startsWith('image/') || /\.(jpe?g|png|heic|heif|webp|gif|bmp)$/i.test(f.name||'');
+  fileInput.addEventListener('change', async (e)=>{
+    const isImg = f => f.type.startsWith('image/') ||
+      /\.(jpe?g|png|heic|heif|webp|gif|bmp)$/i.test(f.name||'');
     const files = Array.from(e.target.files||[]).filter(isImg);
     if (!files.length) return;
 
-    fileLabelWrap.style.display = 'none';
-    countLabel.textContent = '';
+    // inputを非表示にしてUIを更新
+    fileInput.classList.add('hidden');
+    pickVisual.textContent = '読み込み中…';
     progressWrap.classList.add('show');
-    progressLabel.textContent = '読み込み中…';
-    progressBar.style.width = '30%';
+    progressLabel.textContent = '処理中…';
 
     const dprCap = files.length > 60 ? 1.3 : files.length > 30 ? 1.6 : 2;
     targetW = Math.round(window.innerWidth  * Math.min(window.devicePixelRatio||1, dprCap));
     targetH = Math.round(window.innerHeight * Math.min(window.devicePixelRatio||1, dprCap));
 
-    // 最初の1枚だけ変換してすぐ再生開始、残りはオンデマンド
-    slides = files.map(f => ({file:f, url:null}));
+    slides = files.map(f=>({file:f, url:null}));
+
+    // 1枚目だけ先に変換
     try {
-      const url = await resizeFile(slides[0].file, targetW, targetH);
-      if (!url) throw new Error('decode failed');
-      slides[0].url = url;
+      slides[0].url = await resizeFile(slides[0].file, targetW, targetH);
+      if (!slides[0].url) throw new Error();
     } catch {
-      progressLabel.textContent = '写真を読み込めませんでした。別の写真を試してください。';
-      fileLabelWrap.style.display = 'inline-block';
-      fileInput.value = '';
+      progressLabel.textContent = '読み込めませんでした。別の写真を試してください。';
+      fileInput.classList.remove('hidden');
+      pickVisual.textContent = '写真を選ぶ';
+      fileInput.value='';
       return;
     }
     startShow();
   });
 
   // canvas再エンコードでEXIF(位置情報含む)を除去
-  function resizeFile(file, maxW, maxH) {
-    return new Promise(resolve => {
+  function resizeFile(file, maxW, maxH){
+    return new Promise(resolve=>{
       const reader = new FileReader();
-      reader.onerror = () => resolve(null);
-      reader.onload = ev => {
+      reader.onerror = ()=>resolve(null);
+      reader.onload = ev=>{
         const img = new Image();
-        img.onload = () => {
+        img.onload = ()=>{
           try {
-            const w = img.naturalWidth, h = img.naturalHeight;
+            const w=img.naturalWidth, h=img.naturalHeight;
             if (!w||!h) return resolve(null);
-            const s = Math.min(1, maxW/w, maxH/h);
-            const cw = Math.max(1,Math.round(w*s)), ch = Math.max(1,Math.round(h*s));
-            const c = document.createElement('canvas');
+            const s=Math.min(1,maxW/w,maxH/h);
+            const cw=Math.max(1,Math.round(w*s)), ch=Math.max(1,Math.round(h*s));
+            const c=document.createElement('canvas');
             c.width=cw; c.height=ch;
-            const ctx = c.getContext('2d');
+            const ctx=c.getContext('2d');
             ctx.imageSmoothingEnabled=true;
             ctx.imageSmoothingQuality='high';
             ctx.drawImage(img,0,0,cw,ch);
             resolve(c.toDataURL('image/jpeg',0.86));
           } catch { resolve(null); }
         };
-        img.onerror = () => resolve(null);
-        img.src = ev.target.result;
+        img.onerror=()=>resolve(null);
+        img.src=ev.target.result;
       };
       reader.readAsDataURL(file);
     });
   }
 
-  const URL_CACHE_RADIUS = 1;
-  async function ensureURL(i) {
+  async function ensureURL(i){
     if (slides[i].url) return slides[i].url;
-    const url = await resizeFile(slides[i].file, targetW, targetH);
-    slides[i].url = url;
-    return url;
+    slides[i].url = await resizeFile(slides[i].file, targetW, targetH);
+    return slides[i].url;
   }
-  function prune(center) {
-    slides.forEach((s,i) => {
-      const d = Math.min(Math.abs(i-center), slides.length-Math.abs(i-center));
-      if (d > URL_CACHE_RADIUS) s.url = null;
+  function prune(center){
+    slides.forEach((s,i)=>{
+      const d=Math.min(Math.abs(i-center),slides.length-Math.abs(i-center));
+      if (d>1) s.url=null;
     });
   }
 
   // ---------- スライドショー ----------
-  function startShow() {
+  function startShow(){
     intro.classList.add('hidden');
+    fileInput.classList.add('hidden');
     stage.classList.add('show');
     stage.querySelectorAll('.slide').forEach(n=>n.remove());
-    const a = document.createElement('div'); a.className='slide';
-    const b = document.createElement('div'); b.className='slide';
-    stage.insertBefore(a, hud);
-    stage.insertBefore(b, hud);
-    slideEls = [a,b];
-    a.style.backgroundImage = `url(${slides[0].url})`;
+    const a=document.createElement('div'); a.className='slide';
+    const b=document.createElement('div'); b.className='slide';
+    stage.insertBefore(a,hud); stage.insertBefore(b,hud);
+    slideEls=[a,b];
+    a.style.backgroundImage=`url(${slides[0].url})`;
     a.classList.add('active');
-    hudLabel.textContent = `1 / ${slides.length}`;
-    showHud();
-    play();
+    hudLabel.textContent=`1 / ${slides.length}`;
+    showHud(); play();
   }
 
-  let goToken = 0;
-  async function goTo(idx) {
-    const next = (idx+slides.length)%slides.length;
-    const tok = ++goToken;
-    const url = await ensureURL(next);
+  let goToken=0;
+  async function goTo(idx){
+    const next=(idx+slides.length)%slides.length;
+    const tok=++goToken;
+    const url=await ensureURL(next);
     if (tok!==goToken) return;
     if (!url){currentIndex=next;return;}
-    const on  = slideEls[0].classList.contains('active')?slideEls[0]:slideEls[1];
-    const off = on===slideEls[0]?slideEls[1]:slideEls[0];
-    off.style.backgroundImage = `url(${url})`;
-    off.classList.add('active');
-    on.classList.remove('active');
+    const on =slideEls[0].classList.contains('active')?slideEls[0]:slideEls[1];
+    const off=on===slideEls[0]?slideEls[1]:slideEls[0];
+    off.style.backgroundImage=`url(${url})`;
+    off.classList.add('active'); on.classList.remove('active');
     setTimeout(()=>{on.style.backgroundImage='';},400);
-    currentIndex = next;
-    prune(currentIndex);
-    hudLabel.textContent = `${currentIndex+1} / ${slides.length}`;
+    currentIndex=next; prune(currentIndex);
+    hudLabel.textContent=`${currentIndex+1} / ${slides.length}`;
   }
 
-  function play() {
+  function play(){
     if (isPlaying||slides.length<2) return;
-    isPlaying=true; playPauseBtn.textContent='❚❚';
-    tick();
+    isPlaying=true; playPauseBtn.textContent='❚❚'; tick();
   }
-  function pause() {
+  function pause(){
     isPlaying=false; playPauseBtn.textContent='▶';
     clearTimeout(tickTimer); cancelAnimationFrame(rafId);
   }
-  function tick() {
-    tickStart=performance.now();
-    animBar();
+  function tick(){
+    tickStart=performance.now(); animBar();
     tickTimer=setTimeout(()=>{goTo(currentIndex+1);if(isPlaying)tick();},INTERVAL_MS);
   }
-  function animBar() {
+  function animBar(){
     function f(){
       if(!isPlaying)return;
       const p=Math.min(100,(performance.now()-tickStart)/INTERVAL_MS*100);
@@ -327,7 +257,8 @@
     pause();
     stage.classList.remove('show');
     intro.classList.remove('hidden');
-    fileLabelWrap.style.display='inline-block';
+    fileInput.classList.remove('hidden');
+    pickVisual.textContent='写真を選ぶ';
     progressWrap.classList.remove('show');
     progressLabel.textContent='';
     progressBar.style.width='0%';
@@ -337,8 +268,7 @@
 
   let hudTimer=null;
   function showHud(){
-    hud.classList.add('visible');
-    clearTimeout(hudTimer);
+    hud.classList.add('visible'); clearTimeout(hudTimer);
     hudTimer=setTimeout(()=>hud.classList.remove('visible'),2500);
   }
   stage.addEventListener('click',e=>{if(!e.target.closest('.hud-btn'))showHud();});
@@ -350,82 +280,6 @@
     if(Math.abs(dx)>40){pause();goTo(currentIndex+(dx<0?1:-1));}
     tx=null;
   },{passive:true});
-
-  // ---------- 書き出し ----------
-  exportBtn.addEventListener('click',async()=>{
-    if(!slides.length||typeof MediaRecorder==='undefined'){
-      alert('この端末では動画書き出しに対応していません');return;
-    }
-    const mimes=['video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9','video/webm'];
-    const mime=mimes.find(m=>MediaRecorder.isTypeSupported(m));
-    if(!mime){alert('対応する動画形式が見つかりませんでした');return;}
-    pause();
-    exportOverlay.classList.add('show');
-    exportProgress.style.display='flex';
-    exportResult.classList.remove('show');
-    exportLabel.textContent=`動画を作成中… 0%`;
-    exportBar.style.width='0%';
-
-    const canvas=document.createElement('canvas');
-    canvas.width=1080;canvas.height=1920;
-    const ctx=canvas.getContext('2d');
-    if(typeof canvas.captureStream!=='function'){
-      exportLabel.textContent='この環境では動画録画機能が使えません';return;
-    }
-    const stream=canvas.captureStream(12);
-    const recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:5_000_000});
-    const chunks=[];
-    recorder.ondataavailable=e=>{if(e.data?.size)chunks.push(e.data);};
-    const stopped=new Promise(r=>{recorder.onstop=r;});
-    recorder.start();
-
-    const loadImg=url=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url;});
-    const drawCover=(ctx,img,w,h,a=1)=>{
-      const s=Math.max(w/img.width,h/img.height);
-      ctx.globalAlpha=a;ctx.drawImage(img,(w-img.width*s)/2,(h-img.height*s)/2,img.width*s,img.height*s);ctx.globalAlpha=1;
-    };
-    try {
-      const images=[];
-      for(let i=0;i<slides.length;i++){
-        const url=await ensureURL(i);
-        images.push(await loadImg(url));
-        prune(i);
-      }
-      const FADE=350;
-      for(let i=0;i<slides.length;i++){
-        const dur=INTERVAL_MS-FADE;
-        ctx.fillStyle='#000';ctx.fillRect(0,0,1080,1920);
-        drawCover(ctx,images[i],1080,1920);
-        await new Promise(r=>setTimeout(r,dur));
-        if(slides.length>1){
-          const steps=8;
-          for(let s=1;s<=steps;s++){
-            const a=s/steps;
-            ctx.fillStyle='#000';ctx.fillRect(0,0,1080,1920);
-            drawCover(ctx,images[i],1080,1920,1-a);
-            drawCover(ctx,images[(i+1)%images.length],1080,1920,a);
-            await new Promise(r=>setTimeout(r,FADE/steps));
-          }
-        }
-        exportBar.style.width=Math.round((i+1)/slides.length*100)+'%';
-        exportLabel.textContent=`動画を作成中… ${Math.round((i+1)/slides.length*100)}%`;
-      }
-      recorder.stop();await stopped;
-      const blob=new Blob(chunks,{type:mime});
-      if(!blob.size){exportLabel.textContent='動画データが空でした（録画機能がブロックされている可能性があります）';return;}
-      const reader=new FileReader();
-      reader.onload=()=>{exportVideoEl.src=reader.result;exportProgress.style.display='none';exportResult.classList.add('show');};
-      reader.onerror=()=>{exportLabel.textContent='動画の生成に失敗しました';};
-      reader.readAsDataURL(blob);
-    } catch(err) {
-      try{recorder.stop();}catch{}
-      exportLabel.textContent='エラー: '+( err?.message||String(err));
-    }
-  });
-  exportCloseBtn.addEventListener('click',()=>{
-    exportOverlay.classList.remove('show');
-    exportVideoEl.pause();exportVideoEl.removeAttribute('src');exportVideoEl.load();
-  });
 })();
 </script>
 </body>
