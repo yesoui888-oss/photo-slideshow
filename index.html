@@ -5,26 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>巡 - Slideshow</title>
 <style>
-  :root{--ink:#0c0c0d;--paper:#f4f1ea;--ember:#c2542e;}
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0;}
-  html,body{height:100%;background:var(--ink);color:var(--paper);
-    font-family:-apple-system,"Hiragino Sans","Yu Gothic",sans-serif;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;background:#000;color:#fff;font-family:sans-serif;}
 
   #intro{
     height:100vh;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;gap:24px;
-    padding:40px 32px;text-align:center;
-    background:radial-gradient(circle at 50% 20%,rgba(194,84,46,0.12),transparent 60%),var(--ink);
+    align-items:center;justify-content:center;gap:20px;
+    padding:32px;text-align:center;background:#111;
   }
   #intro.hidden{display:none;}
-  .mark{font-size:13px;letter-spacing:0.5em;color:var(--ember);font-weight:600;}
-  .ttl{font-size:clamp(28px,7vw,40px);font-weight:300;line-height:1.4;}
-  .ttl b{font-weight:600;color:var(--ember);}
-  .sub{font-size:13px;color:rgba(244,241,234,0.5);max-width:280px;line-height:1.7;}
-  .pick-visual{border:1px solid var(--ember);padding:16px 48px;font-size:15px;
-    letter-spacing:0.08em;border-radius:2px;color:var(--paper);}
-  .tap-hint{font-size:11px;color:rgba(244,241,234,0.3);}
-  #status{font-size:12px;color:rgba(244,241,234,0.5);min-height:1.5em;padding:0 20px;line-height:1.5;}
+
+  h1{font-size:24px;font-weight:300;}
+  h1 b{color:#c2542e;}
 
   /* 画面全体を覆う透明input */
   #fileInput{
@@ -33,228 +25,171 @@
   }
   #fileInput.hidden{display:none;}
 
+  .btn-look{
+    border:1px solid #c2542e;padding:14px 40px;
+    font-size:15px;border-radius:2px;color:#fff;background:transparent;
+  }
+  #dbg{
+    position:fixed;top:0;left:0;right:0;z-index:999;
+    background:rgba(0,0,0,0.85);color:#0f0;
+    font-size:11px;padding:8px 12px;line-height:1.6;
+    white-space:pre-wrap;pointer-events:none;
+  }
+
   /* スライドショー */
-  #stage{position:fixed;inset:0;display:none;background:#000;z-index:10;}
+  #stage{position:fixed;inset:0;background:#000;z-index:10;display:none;}
   #stage.show{display:block;}
-
-  /* imgタグで表示（background-imageより確実） */
-  #stage img.slide{
+  #stage img{
     position:absolute;inset:0;width:100%;height:100%;
-    object-fit:contain;/* containで確実に表示、後でcoverに変えられる */
-    opacity:0;transition:opacity 0.4s ease;
+    object-fit:contain;background:#000;
+    opacity:0;transition:opacity 0.4s;
   }
-  #stage img.slide.active{opacity:1;}
-
-  #hud{
-    position:fixed;top:0;left:0;right:0;z-index:20;
-    display:flex;align-items:center;justify-content:space-between;
-    padding:max(16px,env(safe-area-inset-top)) 18px 16px;
-    background:linear-gradient(to bottom,rgba(0,0,0,0.6),transparent);
-    opacity:0;pointer-events:none;transition:opacity .3s;
+  #stage img.active{opacity:1;}
+  #ctrl{
+    position:fixed;bottom:30px;left:0;right:0;z-index:20;
+    display:flex;justify-content:center;gap:16px;
   }
-  #hud.visible{opacity:1;pointer-events:auto;}
-  .lbl{font-size:11px;letter-spacing:0.08em;color:rgba(244,241,234,0.8);}
-  .hud-controls{display:flex;gap:8px;}
-  .hud-btn{
-    background:rgba(0,0,0,0.5);border:1px solid rgba(244,241,234,0.2);color:var(--paper);
-    width:38px;height:38px;border-radius:50%;display:flex;align-items:center;
-    justify-content:center;font-size:15px;cursor:pointer;
+  .cbtn{
+    background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.3);
+    color:#fff;width:48px;height:48px;border-radius:50%;
+    font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;
   }
-  #timebar{position:fixed;left:0;right:0;bottom:0;height:2px;z-index:20;background:rgba(244,241,234,0.15);}
-  #timebar i{display:block;height:100%;width:0%;background:var(--ember);}
+  #counter{
+    position:fixed;top:max(16px,env(safe-area-inset-top));left:16px;
+    z-index:20;font-size:13px;color:rgba(255,255,255,0.7);
+  }
 </style>
 </head>
 <body>
 
+<div id="dbg">起動しました</div>
+
 <div id="intro">
-  <div class="mark">PHOTO SLIDESHOW</div>
-  <div class="ttl">写真は、<br><b>一秒</b>ごとに巡る。</div>
-  <div class="sub">位置情報などのメタデータは自動的に除去されます。</div>
-  <div class="pick-visual" id="pickVisual">写真を選ぶ</div>
-  <div class="tap-hint">↑ タップして写真を選択</div>
-  <div id="status"></div>
+  <h1>写真は、<br><b>一秒</b>ごとに巡る。</h1>
+  <p style="font-size:13px;color:rgba(255,255,255,0.5)">画面をタップして写真を選ぶ</p>
+  <div class="btn-look">写真を選ぶ</div>
+  <p id="introStatus" style="font-size:12px;color:rgba(255,255,255,0.4);min-height:1em;"></p>
 </div>
 
 <input type="file" id="fileInput" accept="image/*" multiple>
 
 <div id="stage">
-  <div id="hud">
-    <div class="lbl" id="hudLabel">1 / 1</div>
-    <div class="hud-controls">
-      <div class="hud-btn" id="playPauseBtn">❚❚</div>
-      <div class="hud-btn" id="closeBtn">✕</div>
-    </div>
+  <div id="counter">- / -</div>
+  <div id="ctrl">
+    <div class="cbtn" id="prevBtn">‹</div>
+    <div class="cbtn" id="ppBtn">❚❚</div>
+    <div class="cbtn" id="nextBtn">›</div>
+    <div class="cbtn" id="closeBtn">✕</div>
   </div>
-  <div id="timebar"><i id="timebarFill"></i></div>
 </div>
 
 <script>
 (function(){
-  const intro        = document.getElementById('intro');
-  const fileInput    = document.getElementById('fileInput');
-  const pickVisual   = document.getElementById('pickVisual');
-  const statusEl     = document.getElementById('status');
-  const stage        = document.getElementById('stage');
-  const hud          = document.getElementById('hud');
-  const hudLabel     = document.getElementById('hudLabel');
-  const playPauseBtn = document.getElementById('playPauseBtn');
-  const closeBtn     = document.getElementById('closeBtn');
-  const timebarFill  = document.getElementById('timebarFill');
+  const dbg     = document.getElementById('dbg');
+  const intro   = document.getElementById('intro');
+  const iStatus = document.getElementById('introStatus');
+  const fileInput=document.getElementById('fileInput');
+  const stage   = document.getElementById('stage');
+  const counter = document.getElementById('counter');
+  const ppBtn   = document.getElementById('ppBtn');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const closeBtn= document.getElementById('closeBtn');
 
-  const INTERVAL_MS = 1000;
-  let files = [];
-  let urls  = {}; // index -> objectURL or dataURL
-  let imgEls = [null, null]; // ダブルバッファ
-  let currentIndex = 0;
-  let isPlaying = false;
-  let tickTimer = null, tickStart = 0, rafId = null;
+  let files=[], imgA, imgB, current=0, playing=false, timer=null;
 
-  function setStatus(msg){ statusEl.textContent = msg; }
+  function log(msg){
+    dbg.textContent = msg;
+    console.log(msg);
+  }
 
-  // ---------- ファイル選択 ----------
-  fileInput.addEventListener('change', async (e)=>{
-    const all = Array.from(e.target.files||[]);
-    files = all.filter(f =>
-      f.type.startsWith('image/') ||
-      /\.(jpe?g|png|heic|heif|webp|gif|bmp)$/i.test(f.name||'')
-    );
-    if (!files.length){ setStatus('画像ファイルが見つかりませんでした'); return; }
+  fileInput.addEventListener('change', async e=>{
+    files = Array.from(e.target.files||[]);
+    log(`選択: ${files.length}枚 / type[0]=${files[0]?.type} / name[0]=${files[0]?.name}`);
+    iStatus.textContent = `${files.length}枚選択中…`;
+    if (!files.length) return;
 
     fileInput.classList.add('hidden');
-    pickVisual.textContent = '読み込み中…';
-    setStatus(`${files.length}枚 処理中…`);
 
-    // 1枚目のURLを取得
-    const url = await getURL(0);
-    setStatus(`1枚目: ${url ? url.slice(0,30)+'…' : 'null'}`);
-
-    if (!url){
-      setStatus('画像を読み込めませんでした');
-      fileInput.classList.remove('hidden');
-      pickVisual.textContent = '写真を選ぶ';
+    // ObjectURLを試す
+    let url;
+    try {
+      url = URL.createObjectURL(files[0]);
+      log(`URL作成OK: ${url.slice(0,40)}`);
+    } catch(err){
+      log(`URL作成NG: ${err}`);
+      iStatus.textContent = 'エラー: '+err;
       return;
     }
-    startShow();
+
+    // imgで読み込めるか確認
+    await new Promise(res=>{
+      const test = new Image();
+      test.onload = ()=>{ log(`img読込OK: ${test.naturalWidth}x${test.naturalHeight}`); res(); };
+      test.onerror = (e)=>{ log(`img読込NG: ${JSON.stringify(e.type)}`); res(); };
+      test.src = url;
+    });
+
+    startShow(url);
   });
 
-  // ObjectURL（最もシンプル、変換なし）
-  function getURL(i){
-    if (urls[i]) return Promise.resolve(urls[i]);
-    return new Promise(resolve=>{
-      try {
-        const u = URL.createObjectURL(files[i]);
-        urls[i] = u;
-        resolve(u);
-      } catch(err){
-        setStatus('ObjectURL error: '+err.message);
-        resolve(null);
-      }
-    });
-  }
-
-  function pruneURLs(center){
-    Object.keys(urls).forEach(k=>{
-      const i = parseInt(k);
-      const d = Math.min(Math.abs(i-center), files.length-Math.abs(i-center));
-      if (d > 2){ URL.revokeObjectURL(urls[i]); delete urls[i]; }
-    });
-  }
-
-  // ---------- スライドショー ----------
-  function makeImgEl(){
-    const img = document.createElement('img');
-    img.className = 'slide';
-    img.setAttribute('playsinline','');
-    stage.insertBefore(img, hud);
-    return img;
-  }
-
-  function startShow(){
+  function startShow(firstUrl){
     intro.classList.add('hidden');
-    stage.querySelectorAll('img.slide').forEach(n=>n.remove());
-    imgEls[0] = makeImgEl();
-    imgEls[1] = makeImgEl();
-
-    imgEls[0].src = urls[0];
-    imgEls[0].classList.add('active');
-
+    stage.querySelectorAll('img').forEach(n=>n.remove());
+    imgA = document.createElement('img');
+    imgB = document.createElement('img');
+    stage.insertBefore(imgA, document.getElementById('counter'));
+    stage.insertBefore(imgB, document.getElementById('counter'));
+    imgA.src = firstUrl;
+    imgA.classList.add('active');
+    imgA.onload = ()=>log(`imgA表示OK`);
+    imgA.onerror= ()=>log(`imgA表示NG`);
     stage.classList.add('show');
-    hudLabel.textContent = `1 / ${files.length}`;
-    showHud();
-    play();
+    current = 0;
+    counter.textContent = `1 / ${files.length}`;
+    log(`スライドショー開始: ${files.length}枚`);
+    startPlay();
   }
 
-  let goToken = 0;
-  async function goTo(idx){
-    const next = (idx + files.length) % files.length;
-    const tok  = ++goToken;
-    const url  = await getURL(next);
-    if (tok !== goToken) return;
-    if (!url){ currentIndex = next; return; }
+  async function showSlide(idx){
+    const i = (idx+files.length)%files.length;
+    let url;
+    try { url = URL.createObjectURL(files[i]); }
+    catch(e){ log('URL error:'+e); return; }
 
-    const active = imgEls[0].classList.contains('active') ? imgEls[0] : imgEls[1];
-    const hidden = active === imgEls[0] ? imgEls[1] : imgEls[0];
-
+    const showing = imgA.classList.contains('active') ? imgA : imgB;
+    const hidden  = showing===imgA ? imgB : imgA;
     hidden.src = url;
+    await new Promise(r=>{hidden.onload=r; hidden.onerror=r;});
     hidden.classList.add('active');
-    active.classList.remove('active');
-    setTimeout(()=>{ active.src = ''; }, 500);
-
-    currentIndex = next;
-    pruneURLs(currentIndex);
-    hudLabel.textContent = `${currentIndex+1} / ${files.length}`;
+    showing.classList.remove('active');
+    setTimeout(()=>{ showing.src=''; }, 500);
+    current = i;
+    counter.textContent = `${i+1} / ${files.length}`;
   }
 
-  function play(){
-    if (isPlaying || files.length < 2) return;
-    isPlaying = true; playPauseBtn.textContent = '❚❚'; tick();
+  function startPlay(){
+    if (playing||files.length<2) return;
+    playing=true; ppBtn.textContent='❚❚';
+    timer=setInterval(()=>showSlide(current+1), 1000);
   }
-  function pause(){
-    isPlaying = false; playPauseBtn.textContent = '▶';
-    clearTimeout(tickTimer); cancelAnimationFrame(rafId);
-  }
-  function tick(){
-    tickStart = performance.now(); animBar();
-    tickTimer = setTimeout(()=>{ goTo(currentIndex+1); if(isPlaying) tick(); }, INTERVAL_MS);
-  }
-  function animBar(){
-    function f(){
-      if(!isPlaying) return;
-      const p = Math.min(100,(performance.now()-tickStart)/INTERVAL_MS*100);
-      timebarFill.style.width = p+'%';
-      if(p<100) rafId = requestAnimationFrame(f);
-    }
-    rafId = requestAnimationFrame(f);
+  function stopPlay(){
+    playing=false; ppBtn.textContent='▶';
+    clearInterval(timer);
   }
 
-  playPauseBtn.addEventListener('click',()=> isPlaying ? pause() : play());
+  ppBtn.addEventListener('click',   ()=>playing?stopPlay():startPlay());
+  prevBtn.addEventListener('click', ()=>{ stopPlay(); showSlide(current-1); });
+  nextBtn.addEventListener('click', ()=>{ stopPlay(); showSlide(current+1); });
   closeBtn.addEventListener('click',()=>{
-    pause();
+    stopPlay();
     stage.classList.remove('show');
     intro.classList.remove('hidden');
     fileInput.classList.remove('hidden');
-    pickVisual.textContent = '写真を選ぶ';
-    setStatus(`前回: ${files.length}枚`);
-    fileInput.value = '';
-    Object.values(urls).forEach(u=>URL.revokeObjectURL(u));
-    urls = {}; files = [];
+    fileInput.value='';
+    files=[]; current=0;
+    log('トップに戻りました');
   });
-
-  let hudTimer = null;
-  function showHud(){
-    hud.classList.add('visible'); clearTimeout(hudTimer);
-    hudTimer = setTimeout(()=>hud.classList.remove('visible'), 2500);
-  }
-  stage.addEventListener('click', e=>{ if(!e.target.closest('.hud-btn')) showHud(); });
-
-  let tx = null;
-  stage.addEventListener('touchstart', e=>{ tx=e.touches[0].clientX; },{passive:true});
-  stage.addEventListener('touchend', e=>{
-    if(tx===null) return;
-    const dx = e.changedTouches[0].clientX - tx;
-    if(Math.abs(dx)>40){ pause(); goTo(currentIndex+(dx<0?1:-1)); }
-    tx = null;
-  },{passive:true});
 })();
 </script>
 </body>
