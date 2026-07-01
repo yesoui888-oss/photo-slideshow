@@ -5,12 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>巡 - Slideshow</title>
 <style>
-  :root{--ink:#0c0c0d;--paper:#f4f1ea;--ember:#c2542e;--line:rgba(244,241,234,0.18);}
+  :root{--ink:#0c0c0d;--paper:#f4f1ea;--ember:#c2542e;}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0;}
   html,body{height:100%;background:var(--ink);color:var(--paper);
     font-family:-apple-system,"Hiragino Sans","Yu Gothic",sans-serif;}
 
-  /* 起動画面 */
   #intro{
     height:100vh;display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:24px;
@@ -19,21 +18,15 @@
   }
   #intro.hidden{display:none;}
   .mark{font-size:13px;letter-spacing:0.5em;color:var(--ember);font-weight:600;}
-  .ttl{font-size:clamp(28px,7vw,40px);font-weight:300;letter-spacing:0.04em;line-height:1.4;}
+  .ttl{font-size:clamp(28px,7vw,40px);font-weight:300;line-height:1.4;}
   .ttl b{font-weight:600;color:var(--ember);}
-  .sub{font-size:14px;color:rgba(244,241,234,0.55);max-width:300px;line-height:1.7;}
-  .pick-visual{
-    border:1px solid var(--ember);padding:16px 48px;font-size:15px;
-    letter-spacing:0.08em;border-radius:2px;color:var(--paper);
-  }
-  .tap-hint{font-size:12px;color:rgba(244,241,234,0.35);letter-spacing:0.05em;}
-  .count{font-size:12px;color:rgba(244,241,234,0.4);letter-spacing:0.06em;}
-  #progressWrap{width:220px;height:1px;background:var(--line);position:relative;display:none;}
-  #progressWrap.show{display:block;}
-  #progressBar{position:absolute;left:0;top:0;height:100%;width:0%;background:var(--ember);transition:width .15s linear;}
-  #progressLabel{font-size:11px;color:rgba(244,241,234,0.45);letter-spacing:0.06em;min-height:1.2em;}
+  .sub{font-size:13px;color:rgba(244,241,234,0.5);max-width:280px;line-height:1.7;}
+  .pick-visual{border:1px solid var(--ember);padding:16px 48px;font-size:15px;
+    letter-spacing:0.08em;border-radius:2px;color:var(--paper);}
+  .tap-hint{font-size:11px;color:rgba(244,241,234,0.3);}
+  #status{font-size:12px;color:rgba(244,241,234,0.5);min-height:1.5em;padding:0 20px;line-height:1.5;}
 
-  /* 画面全体を覆う透明なfileInput — どこをタップしても選択できる */
+  /* 画面全体を覆う透明input */
   #fileInput{
     position:fixed;top:0;left:0;width:100%;height:100%;
     opacity:0;z-index:99;cursor:pointer;font-size:16px;
@@ -43,55 +36,52 @@
   /* スライドショー */
   #stage{position:fixed;inset:0;display:none;background:#000;z-index:10;}
   #stage.show{display:block;}
-  .slide{
-    position:absolute;inset:0;
-    background-size:cover;background-position:center;
-    opacity:0;transition:opacity 0.35s ease;
+
+  /* imgタグで表示（background-imageより確実） */
+  #stage img.slide{
+    position:absolute;inset:0;width:100%;height:100%;
+    object-fit:contain;/* containで確実に表示、後でcoverに変えられる */
+    opacity:0;transition:opacity 0.4s ease;
   }
-  .slide.active{opacity:1;}
+  #stage img.slide.active{opacity:1;}
+
   #hud{
     position:fixed;top:0;left:0;right:0;z-index:20;
     display:flex;align-items:center;justify-content:space-between;
     padding:max(16px,env(safe-area-inset-top)) 18px 16px;
-    background:linear-gradient(to bottom,rgba(0,0,0,0.55),transparent);
+    background:linear-gradient(to bottom,rgba(0,0,0,0.6),transparent);
     opacity:0;pointer-events:none;transition:opacity .3s;
   }
   #hud.visible{opacity:1;pointer-events:auto;}
-  #hud .lbl{font-size:11px;letter-spacing:0.08em;color:rgba(244,241,234,0.75);}
+  .lbl{font-size:11px;letter-spacing:0.08em;color:rgba(244,241,234,0.8);}
   .hud-controls{display:flex;gap:8px;}
   .hud-btn{
-    background:rgba(12,12,13,0.55);border:1px solid var(--line);color:var(--paper);
-    width:36px;height:36px;border-radius:50%;display:flex;align-items:center;
-    justify-content:center;font-size:16px;cursor:pointer;
+    background:rgba(0,0,0,0.5);border:1px solid rgba(244,241,234,0.2);color:var(--paper);
+    width:38px;height:38px;border-radius:50%;display:flex;align-items:center;
+    justify-content:center;font-size:15px;cursor:pointer;
   }
-  #timebar{position:fixed;left:0;right:0;bottom:0;height:2px;z-index:20;background:var(--line);}
+  #timebar{position:fixed;left:0;right:0;bottom:0;height:2px;z-index:20;background:rgba(244,241,234,0.15);}
   #timebar i{display:block;height:100%;width:0%;background:var(--ember);}
 </style>
 </head>
 <body>
 
-<!-- 起動画面 -->
 <div id="intro">
   <div class="mark">PHOTO SLIDESHOW</div>
   <div class="ttl">写真は、<br><b>一秒</b>ごとに巡る。</div>
   <div class="sub">位置情報などのメタデータは自動的に除去されます。</div>
   <div class="pick-visual" id="pickVisual">写真を選ぶ</div>
   <div class="tap-hint">↑ タップして写真を選択</div>
-  <div class="count" id="countLabel"></div>
-  <div id="progressWrap"><div id="progressBar"></div></div>
-  <div id="progressLabel"></div>
+  <div id="status"></div>
 </div>
 
-<!-- 画面全体を覆う透明なinput（起動画面表示中のみ有効） -->
 <input type="file" id="fileInput" accept="image/*" multiple>
 
-<!-- スライドショー -->
 <div id="stage">
   <div id="hud">
     <div class="lbl" id="hudLabel">1 / 1</div>
     <div class="hud-controls">
       <div class="hud-btn" id="playPauseBtn">❚❚</div>
-      <div class="hud-btn" id="fullscreenBtn">⤢</div>
       <div class="hud-btn" id="closeBtn">✕</div>
     </div>
   </div>
@@ -103,187 +93,167 @@
   const intro        = document.getElementById('intro');
   const fileInput    = document.getElementById('fileInput');
   const pickVisual   = document.getElementById('pickVisual');
-  const countLabel   = document.getElementById('countLabel');
-  const progressWrap = document.getElementById('progressWrap');
-  const progressBar  = document.getElementById('progressBar');
-  const progressLabel= document.getElementById('progressLabel');
+  const statusEl     = document.getElementById('status');
   const stage        = document.getElementById('stage');
   const hud          = document.getElementById('hud');
   const hudLabel     = document.getElementById('hudLabel');
   const playPauseBtn = document.getElementById('playPauseBtn');
-  const fullscreenBtn= document.getElementById('fullscreenBtn');
   const closeBtn     = document.getElementById('closeBtn');
   const timebarFill  = document.getElementById('timebarFill');
 
   const INTERVAL_MS = 1000;
-  let slides=[], slideEls=[], currentIndex=0;
-  let isPlaying=false, tickTimer=null, tickStart=0, rafId=null;
-  let targetW=0, targetH=0;
+  let files = [];
+  let urls  = {}; // index -> objectURL or dataURL
+  let imgEls = [null, null]; // ダブルバッファ
+  let currentIndex = 0;
+  let isPlaying = false;
+  let tickTimer = null, tickStart = 0, rafId = null;
 
-  // ---------- 写真読み込み ----------
+  function setStatus(msg){ statusEl.textContent = msg; }
+
+  // ---------- ファイル選択 ----------
   fileInput.addEventListener('change', async (e)=>{
-    const isImg = f => f.type.startsWith('image/') ||
-      /\.(jpe?g|png|heic|heif|webp|gif|bmp)$/i.test(f.name||'');
-    const files = Array.from(e.target.files||[]).filter(isImg);
-    if (!files.length) return;
+    const all = Array.from(e.target.files||[]);
+    files = all.filter(f =>
+      f.type.startsWith('image/') ||
+      /\.(jpe?g|png|heic|heif|webp|gif|bmp)$/i.test(f.name||'')
+    );
+    if (!files.length){ setStatus('画像ファイルが見つかりませんでした'); return; }
 
     fileInput.classList.add('hidden');
     pickVisual.textContent = '読み込み中…';
-    progressWrap.classList.add('show');
-    progressLabel.textContent = '処理中…';
+    setStatus(`${files.length}枚 処理中…`);
 
-    const dprCap = files.length > 60 ? 1.3 : files.length > 30 ? 1.6 : 2;
-    targetW = Math.round(window.innerWidth  * Math.min(window.devicePixelRatio||1, dprCap));
-    targetH = Math.round(window.innerHeight * Math.min(window.devicePixelRatio||1, dprCap));
+    // 1枚目のURLを取得
+    const url = await getURL(0);
+    setStatus(`1枚目: ${url ? url.slice(0,30)+'…' : 'null'}`);
 
-    slides = files.map(f=>({file:f, url:null}));
-
-    // 1枚目を変換（失敗時はObjectURLで直接表示）
-    slides[0].url = await resizeOrFallback(slides[0].file, targetW, targetH);
-    if (!slides[0].url) {
-      progressLabel.textContent = '読み込めませんでした。別の写真を試してください。';
+    if (!url){
+      setStatus('画像を読み込めませんでした');
       fileInput.classList.remove('hidden');
       pickVisual.textContent = '写真を選ぶ';
-      fileInput.value='';
       return;
     }
     startShow();
   });
 
-  // canvas再エンコードでEXIF(位置情報含む)を除去
-  // 失敗時(HEIC等)はObjectURLにフォールバック
-  async function resizeOrFallback(file, maxW, maxH) {
-    const url = await resizeFile(file, maxW, maxH);
-    if (url) return url;
-    // canvasで処理できない形式(HEICなど)はObjectURLで直接表示
-    return URL.createObjectURL(file);
-  }
-
-  function resizeFile(file, maxW, maxH){
+  // ObjectURL（最もシンプル、変換なし）
+  function getURL(i){
+    if (urls[i]) return Promise.resolve(urls[i]);
     return new Promise(resolve=>{
-      const reader = new FileReader();
-      reader.onerror = ()=>resolve(null);
-      reader.onload = ev=>{
-        const img = new Image();
-        img.onload = ()=>{
-          try {
-            const w=img.naturalWidth, h=img.naturalHeight;
-            if (!w||!h) return resolve(null);
-            const s=Math.min(1,maxW/w,maxH/h);
-            const cw=Math.max(1,Math.round(w*s)), ch=Math.max(1,Math.round(h*s));
-            const c=document.createElement('canvas');
-            c.width=cw; c.height=ch;
-            const ctx=c.getContext('2d');
-            ctx.imageSmoothingEnabled=true;
-            ctx.imageSmoothingQuality='high';
-            ctx.drawImage(img,0,0,cw,ch);
-            resolve(c.toDataURL('image/jpeg',0.86));
-          } catch { resolve(null); }
-        };
-        img.onerror=()=>resolve(null);
-        img.src=ev.target.result;
-      };
-      reader.readAsDataURL(file);
+      try {
+        const u = URL.createObjectURL(files[i]);
+        urls[i] = u;
+        resolve(u);
+      } catch(err){
+        setStatus('ObjectURL error: '+err.message);
+        resolve(null);
+      }
     });
   }
 
-  async function ensureURL(i){
-    if (slides[i].url) return slides[i].url;
-    slides[i].url = await resizeOrFallback(slides[i].file, targetW, targetH);
-    return slides[i].url;
-  }
-  function prune(center){
-    slides.forEach((s,i)=>{
-      const d=Math.min(Math.abs(i-center),slides.length-Math.abs(i-center));
-      if (d>1) s.url=null;
+  function pruneURLs(center){
+    Object.keys(urls).forEach(k=>{
+      const i = parseInt(k);
+      const d = Math.min(Math.abs(i-center), files.length-Math.abs(i-center));
+      if (d > 2){ URL.revokeObjectURL(urls[i]); delete urls[i]; }
     });
   }
 
   // ---------- スライドショー ----------
-  function startShow(){
-    intro.classList.add('hidden');
-    fileInput.classList.add('hidden');
-    stage.classList.add('show');
-    stage.querySelectorAll('.slide').forEach(n=>n.remove());
-    const a=document.createElement('div'); a.className='slide';
-    const b=document.createElement('div'); b.className='slide';
-    stage.insertBefore(a,hud); stage.insertBefore(b,hud);
-    slideEls=[a,b];
-    a.style.backgroundImage=`url(${slides[0].url})`;
-    a.classList.add('active');
-    hudLabel.textContent=`1 / ${slides.length}`;
-    showHud(); play();
+  function makeImgEl(){
+    const img = document.createElement('img');
+    img.className = 'slide';
+    img.setAttribute('playsinline','');
+    stage.insertBefore(img, hud);
+    return img;
   }
 
-  let goToken=0;
+  function startShow(){
+    intro.classList.add('hidden');
+    stage.querySelectorAll('img.slide').forEach(n=>n.remove());
+    imgEls[0] = makeImgEl();
+    imgEls[1] = makeImgEl();
+
+    imgEls[0].src = urls[0];
+    imgEls[0].classList.add('active');
+
+    stage.classList.add('show');
+    hudLabel.textContent = `1 / ${files.length}`;
+    showHud();
+    play();
+  }
+
+  let goToken = 0;
   async function goTo(idx){
-    const next=(idx+slides.length)%slides.length;
-    const tok=++goToken;
-    const url=await ensureURL(next);
-    if (tok!==goToken) return;
-    if (!url){currentIndex=next;return;}
-    const on =slideEls[0].classList.contains('active')?slideEls[0]:slideEls[1];
-    const off=on===slideEls[0]?slideEls[1]:slideEls[0];
-    off.style.backgroundImage=`url(${url})`;
-    off.classList.add('active'); on.classList.remove('active');
-    setTimeout(()=>{on.style.backgroundImage='';},400);
-    currentIndex=next; prune(currentIndex);
-    hudLabel.textContent=`${currentIndex+1} / ${slides.length}`;
+    const next = (idx + files.length) % files.length;
+    const tok  = ++goToken;
+    const url  = await getURL(next);
+    if (tok !== goToken) return;
+    if (!url){ currentIndex = next; return; }
+
+    const active = imgEls[0].classList.contains('active') ? imgEls[0] : imgEls[1];
+    const hidden = active === imgEls[0] ? imgEls[1] : imgEls[0];
+
+    hidden.src = url;
+    hidden.classList.add('active');
+    active.classList.remove('active');
+    setTimeout(()=>{ active.src = ''; }, 500);
+
+    currentIndex = next;
+    pruneURLs(currentIndex);
+    hudLabel.textContent = `${currentIndex+1} / ${files.length}`;
   }
 
   function play(){
-    if (isPlaying||slides.length<2) return;
-    isPlaying=true; playPauseBtn.textContent='❚❚'; tick();
+    if (isPlaying || files.length < 2) return;
+    isPlaying = true; playPauseBtn.textContent = '❚❚'; tick();
   }
   function pause(){
-    isPlaying=false; playPauseBtn.textContent='▶';
+    isPlaying = false; playPauseBtn.textContent = '▶';
     clearTimeout(tickTimer); cancelAnimationFrame(rafId);
   }
   function tick(){
-    tickStart=performance.now(); animBar();
-    tickTimer=setTimeout(()=>{goTo(currentIndex+1);if(isPlaying)tick();},INTERVAL_MS);
+    tickStart = performance.now(); animBar();
+    tickTimer = setTimeout(()=>{ goTo(currentIndex+1); if(isPlaying) tick(); }, INTERVAL_MS);
   }
   function animBar(){
     function f(){
-      if(!isPlaying)return;
-      const p=Math.min(100,(performance.now()-tickStart)/INTERVAL_MS*100);
-      timebarFill.style.width=p+'%';
-      if(p<100)rafId=requestAnimationFrame(f);
+      if(!isPlaying) return;
+      const p = Math.min(100,(performance.now()-tickStart)/INTERVAL_MS*100);
+      timebarFill.style.width = p+'%';
+      if(p<100) rafId = requestAnimationFrame(f);
     }
-    rafId=requestAnimationFrame(f);
+    rafId = requestAnimationFrame(f);
   }
 
-  playPauseBtn.addEventListener('click',()=>isPlaying?pause():play());
-  fullscreenBtn.addEventListener('click',()=>{
-    if(!document.fullscreenElement) stage.requestFullscreen?.().catch(()=>{});
-    else document.exitFullscreen?.();
-  });
+  playPauseBtn.addEventListener('click',()=> isPlaying ? pause() : play());
   closeBtn.addEventListener('click',()=>{
     pause();
     stage.classList.remove('show');
     intro.classList.remove('hidden');
     fileInput.classList.remove('hidden');
-    pickVisual.textContent='写真を選ぶ';
-    progressWrap.classList.remove('show');
-    progressLabel.textContent='';
-    progressBar.style.width='0%';
-    countLabel.textContent=`前回: ${slides.length}枚`;
-    fileInput.value='';
+    pickVisual.textContent = '写真を選ぶ';
+    setStatus(`前回: ${files.length}枚`);
+    fileInput.value = '';
+    Object.values(urls).forEach(u=>URL.revokeObjectURL(u));
+    urls = {}; files = [];
   });
 
-  let hudTimer=null;
+  let hudTimer = null;
   function showHud(){
     hud.classList.add('visible'); clearTimeout(hudTimer);
-    hudTimer=setTimeout(()=>hud.classList.remove('visible'),2500);
+    hudTimer = setTimeout(()=>hud.classList.remove('visible'), 2500);
   }
-  stage.addEventListener('click',e=>{if(!e.target.closest('.hud-btn'))showHud();});
-  let tx=null;
-  stage.addEventListener('touchstart',e=>{tx=e.touches[0].clientX;},{passive:true});
-  stage.addEventListener('touchend',e=>{
-    if(tx===null)return;
-    const dx=e.changedTouches[0].clientX-tx;
-    if(Math.abs(dx)>40){pause();goTo(currentIndex+(dx<0?1:-1));}
-    tx=null;
+  stage.addEventListener('click', e=>{ if(!e.target.closest('.hud-btn')) showHud(); });
+
+  let tx = null;
+  stage.addEventListener('touchstart', e=>{ tx=e.touches[0].clientX; },{passive:true});
+  stage.addEventListener('touchend', e=>{
+    if(tx===null) return;
+    const dx = e.changedTouches[0].clientX - tx;
+    if(Math.abs(dx)>40){ pause(); goTo(currentIndex+(dx<0?1:-1)); }
+    tx = null;
   },{passive:true});
 })();
 </script>
