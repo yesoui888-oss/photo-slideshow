@@ -127,7 +127,6 @@
     const files = Array.from(e.target.files||[]).filter(isImg);
     if (!files.length) return;
 
-    // inputを非表示にしてUIを更新
     fileInput.classList.add('hidden');
     pickVisual.textContent = '読み込み中…';
     progressWrap.classList.add('show');
@@ -139,11 +138,9 @@
 
     slides = files.map(f=>({file:f, url:null}));
 
-    // 1枚目だけ先に変換
-    try {
-      slides[0].url = await resizeFile(slides[0].file, targetW, targetH);
-      if (!slides[0].url) throw new Error();
-    } catch {
+    // 1枚目を変換（失敗時はObjectURLで直接表示）
+    slides[0].url = await resizeOrFallback(slides[0].file, targetW, targetH);
+    if (!slides[0].url) {
       progressLabel.textContent = '読み込めませんでした。別の写真を試してください。';
       fileInput.classList.remove('hidden');
       pickVisual.textContent = '写真を選ぶ';
@@ -154,6 +151,14 @@
   });
 
   // canvas再エンコードでEXIF(位置情報含む)を除去
+  // 失敗時(HEIC等)はObjectURLにフォールバック
+  async function resizeOrFallback(file, maxW, maxH) {
+    const url = await resizeFile(file, maxW, maxH);
+    if (url) return url;
+    // canvasで処理できない形式(HEICなど)はObjectURLで直接表示
+    return URL.createObjectURL(file);
+  }
+
   function resizeFile(file, maxW, maxH){
     return new Promise(resolve=>{
       const reader = new FileReader();
@@ -184,7 +189,7 @@
 
   async function ensureURL(i){
     if (slides[i].url) return slides[i].url;
-    slides[i].url = await resizeFile(slides[i].file, targetW, targetH);
+    slides[i].url = await resizeOrFallback(slides[i].file, targetW, targetH);
     return slides[i].url;
   }
   function prune(center){
