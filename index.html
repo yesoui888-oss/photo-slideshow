@@ -130,8 +130,11 @@
   <div class="title">写真は、<br><b>一秒</b>ごとに巡る。</div>
   <div class="sub">端末から写真を選ぶと、画面サイズに最適化してから再生します。元データは保存されず、容量を圧迫しません。</div>
 
-  <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
-  <label for="fileInput" class="pick-btn" id="pickBtn">写真を選ぶ</label>
+  <div style="position:relative; display:inline-block;">
+    <label class="pick-btn" id="pickBtn">写真を選ぶ</label>
+    <input type="file" id="fileInput" accept="image/*" multiple
+      style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:16px;">
+  </div>
   <div class="count" id="countLabel"></div>
 
   <div id="progressWrap">
@@ -220,6 +223,7 @@
       return;
     }
     pickBtn.style.display = 'none';
+    pickBtn.parentElement.style.display = 'none';
     countLabel.textContent = '';
     progressWrap.classList.add('show');
     progressLabel.style.display = 'block';
@@ -406,6 +410,7 @@
     intro.style.display = 'flex';
     pickBtn.style.display = 'inline-block';
     pickBtn.textContent = '写真を選ぶ';
+    pickBtn.parentElement.style.display = 'inline-block';
     progressWrap.classList.remove('show');
     progressLabel.style.display = 'none';
     progressBar.style.width = '0%';
