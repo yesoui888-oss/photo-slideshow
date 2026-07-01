@@ -75,7 +75,7 @@
   <p class="sub">写真を選ぶと1秒ごとに切り替わります</p>
 
   <!-- inputを直接表示 (隠さない・透明にしない) -->
-  <input type="file" id="fileInput" accept="image/*" multiple>
+  <input type="file" id="fileInput">
 
   <div id="dbg">ここにデバッグ情報が表示されます</div>
 </div>
@@ -108,34 +108,45 @@
 
   log('JS読み込み完了');
 
-  fileInput.addEventListener('change', async e=>{
-    log('changeイベント発火');
-    const all = Array.from(e.target.files||[]);
-    log(`ファイル数: ${all.length}`);
-    if (!all.length){ log('ファイルなし'); return; }
+  // iOS Safariはchangeが発火しない場合があるため、input/changeの両方+ポーリング
+  let lastFileCount = 0;
+  function handleFiles(source) {
+    const all = Array.from(fileInput.files||[]);
+    if (all.length === 0 || all.length === lastFileCount) return;
+    lastFileCount = all.length;
+    log(`[${source}] ファイル数: ${all.length}`);
+    processFiles(all);
+  }
 
+  fileInput.addEventListener('change', ()=>handleFiles('change'));
+  fileInput.addEventListener('input',  ()=>handleFiles('input'));
+
+  // ポーリング: iOS Safariでchangeが発火しない場合の保険
+  let pollTimer = setInterval(()=>{
+    if (fileInput.files && fileInput.files.length > 0) handleFiles('poll');
+  }, 300);
+
+  async function processFiles(all) {
+    clearInterval(pollTimer);
     files = all;
-    log(`1枚目: ${files[0].name} / ${files[0].type} / ${files[0].size}bytes`);
-
+    log(`1枚目: ${files[0].name} (${files[0].type||'type不明'} ${files[0].size}bytes)`);
     let url;
     try {
       url = URL.createObjectURL(files[0]);
-      log(`URL: ${url.slice(0,50)}`);
-    } catch(err){
-      log(`ObjectURL失敗: ${err.message}`);
-      // FileReaderで試みる
+      log(`ObjectURL: OK`);
+    } catch(err) {
+      log(`ObjectURL失敗: ${err.message} → FileReaderで試みます`);
       url = await new Promise(res=>{
         const r=new FileReader();
         r.onload=ev=>res(ev.target.result);
         r.onerror=()=>res(null);
         r.readAsDataURL(files[0]);
       });
-      log(`FileReader: ${url ? url.slice(0,30)+'…' : 'null'}`);
+      log(`FileReader: ${url ? 'OK' : 'null'}`);
     }
     if (!url){ log('URL取得失敗'); return; }
-
     startShow(url);
-  });
+  }
 
   function startShow(firstUrl){
     log('startShow呼び出し');
