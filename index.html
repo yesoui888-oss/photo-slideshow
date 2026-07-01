@@ -40,12 +40,18 @@
   .sub{
     font-size:14px; color:rgba(244,241,234,0.55); max-width:300px; line-height:1.7;
   }
-  #fileInput{display:none;}
+  /* fileInputはbodyに直置き・position:fixedでボタン上に重ねる */
+  #fileInput{
+    position:fixed; z-index:50;
+    opacity:0; cursor:pointer;
+    /* JSで位置をボタンに合わせる */
+  }
   .pick-btn{
-    appearance:none; border:1px solid var(--ember); background:transparent;
+    display:inline-block;
+    border:1px solid var(--ember); background:transparent;
     color:var(--paper); padding:16px 40px; font-size:15px; letter-spacing:0.08em;
     border-radius:2px; cursor:pointer; transition:background .25s, color .25s;
-    font-family:inherit;
+    font-family:inherit; text-decoration:none;
   }
   .pick-btn:active{background:var(--ember); color:var(--ink);}
   .count{font-size:12px; color:rgba(244,241,234,0.4); letter-spacing:0.06em;}
@@ -130,11 +136,7 @@
   <div class="title">写真は、<br><b>一秒</b>ごとに巡る。</div>
   <div class="sub">端末から写真を選ぶと、画面サイズに最適化してから再生します。元データは保存されず、容量を圧迫しません。</div>
 
-  <div style="position:relative; display:inline-block;">
-    <label class="pick-btn" id="pickBtn">写真を選ぶ</label>
-    <input type="file" id="fileInput" accept="image/*" multiple
-      style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:16px;">
-  </div>
+  <div class="pick-btn" id="pickBtn">写真を選ぶ</div>
   <div class="count" id="countLabel"></div>
 
   <div id="progressWrap">
@@ -142,6 +144,9 @@
   </div>
   <div id="progressLabel" style="display:none;"></div>
 </div>
+
+<!-- fileInputはbody直下・position:fixedでiOS Safariの制限を回避 -->
+<input type="file" id="fileInput" accept="image/*" multiple>
 
 <!-- スライドショー本体 -->
 <div id="stage">
@@ -208,7 +213,18 @@
   let tickStart = 0;
   let rafId = null;
 
-  // label要素なのでclickイベント不要（for="fileInput"で直接紐付け済み）
+  // fileInputをbody直下のposition:fixedでボタン上に重ねる
+  // （position:fixedの親要素内にあるとiOS Safariでタップが効かない問題を回避）
+  function positionFileInput() {
+    const rect = pickBtn.getBoundingClientRect();
+    fileInput.style.left = rect.left + 'px';
+    fileInput.style.top = rect.top + 'px';
+    fileInput.style.width = rect.width + 'px';
+    fileInput.style.height = rect.height + 'px';
+    fileInput.style.fontSize = '16px'; // iOSでズームを防ぐ
+  }
+  positionFileInput();
+  window.addEventListener('resize', positionFileInput);
 
   fileInput.addEventListener('change', async (e) => {
     // iOS では iCloud 写真の file.type が空文字になることがあるため、
@@ -224,6 +240,7 @@
     }
     pickBtn.style.display = 'none';
     pickBtn.parentElement.style.display = 'none';
+    fileInput.style.display = 'none';
     countLabel.textContent = '';
     progressWrap.classList.add('show');
     progressLabel.style.display = 'block';
@@ -411,11 +428,13 @@
     pickBtn.style.display = 'inline-block';
     pickBtn.textContent = '写真を選ぶ';
     pickBtn.parentElement.style.display = 'inline-block';
+    fileInput.style.display = 'block';
     progressWrap.classList.remove('show');
     progressLabel.style.display = 'none';
     progressBar.style.width = '0%';
     countLabel.textContent = `前回: ${slides.length}枚`;
     fileInput.value = '';
+    requestAnimationFrame(positionFileInput);
   });
 
   let hudTimer = null;
